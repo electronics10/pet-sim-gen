@@ -6,7 +6,7 @@
 #
 # Adjust the mcgpu-pet-wrapper path below to wherever you cloned it.
 
-[project]
+[workspace]
 name = "pet-sim-gen"
 version = "0.1.0"
 description = "Generate diverse Monte Carlo PET datasets for downstream ML."
