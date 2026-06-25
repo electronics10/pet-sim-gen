@@ -1,0 +1,20 @@
+# generated datasets -- never commit these (huge, regenerable)
+data*/
+*.raw.gz
+*.vox.gz
+
+# pixi environment
+.pixi/
+
+# python build / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store

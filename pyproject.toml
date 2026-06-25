@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pet-sim-gen"
+version = "0.1.0"
+description = "Generate large, diverse Monte Carlo PET datasets (via mcgpu-pet-wrapper) for downstream ML."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Your Name" }]
+dependencies = [
+    "numpy>=1.24",
+    # mcgpu-pet-wrapper is a separate local package (not on PyPI); it is the
+    # simulator interface this package drives. See README / pixi.toml.
+]
+
+[project.optional-dependencies]
+dev = ["matplotlib", "pytest"]
+
+[project.scripts]
+pet-sim-gen = "pet_sim_gen.generate:main"
+
+[tool.setuptools.packages.find]
+include = ["pet_sim_gen*"]
