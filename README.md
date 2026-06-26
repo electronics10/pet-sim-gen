@@ -60,41 +60,26 @@ sinograms; the generator stays agnostic.
 
 ## 2. Install
 
-This package drives `mcgpu-pet-wrapper` (the simulator interface, a separate local
-repo, not on PyPI). The environment is managed with **pixi**, which also installs
-both packages in editable mode for you.
+You need Python 3.10 or newer. This package drives [`mcgpu-pet-wrapper`](https://github.com/electronics10/mcgpu-pet-wrapper) (the GPU Monte Carlo simulator interface); it is pulled in automatically, so you don't need to clone anything.
+
+Install into an isolated environment (Python's built-in `venv`, conda/mamba, uv, or pixi). For example with conda:
 
 ```bash
-# 1. clone the simulator wrapper (provides the GPU Monte Carlo + geometry/config)
-git clone https://github.com/electronics10/mcgpu-pet-wrapper.git
+conda create -n petgen python=3.10
+conda activate petgen
 
-# 2. clone this project, next to it
-git clone https://github.com/electronics10/pet-sim-gen.git
-cd pet-sim-gen
-
-# 3. one command sets up the environment AND installs both packages editable
-pixi install
+pip install git+https://github.com/electronics10/pet-sim-gen.git
 ```
 
-`pixi install` reads `pixi.toml`, creates the environment (Python, numpy, ...),
-and installs `pet_sim_gen` *and* `mcgpu_pet_wrapper` as editable path
-dependencies — so `import pet_sim_gen` works anywhere inside the env and your
-edits are live. **Adjust the wrapper path** in `pixi.toml` if you cloned it
-somewhere other than `../mcgpu-pet-wrapper`.
+This installs `pet_sim_gen`, the `pet-sim-gen` CLI, and the `mcgpu-pet-wrapper` dependency in one step.
 
-> The wrapper needs an NVIDIA GPU + CUDA to *run* simulations. The pure-logic
-> parts of this package (recipe sampling, stratification, bounds generators) run
-> without a GPU — useful for inspecting recipes before committing GPU time.
+> **Already using uv or pixi?** Same URL: `uv add git+https://github.com/electronics10/pet-sim-gen.git` or `pixi add --pypi "pet-sim-gen @ git+https://github.com/electronics10/pet-sim-gen.git"`.
 
-Run things inside the environment with `pixi run`:
+For developers
+> Simply git clone the repository and try uv sync.
 
-```bash
-pixi run gen --n 10 --out data      # generate (defined as a task in pixi.toml)
-pixi run inspect                    # GPU-free recipe sanity check
-```
-
-After `pixi install` you also have the importable package `pet_sim_gen` and the
-CLI `pet-sim-gen` available inside the env (e.g. `pixi run pet-sim-gen --n 10`).
+**Heads up**
+> **GPU note.** Running simulations needs Linux + an NVIDIA GPU with CUDA (a constraint inherited from the wrapper's bundled binary). The pure-logic parts of this package — recipe sampling, stratification, bounds generators — run anywhere without a GPU, useful for inspecting recipes before committing GPU time.
 
 ---
 

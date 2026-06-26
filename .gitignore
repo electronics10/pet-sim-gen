@@ -3,8 +3,9 @@ data*/
 *.raw.gz
 *.vox.gz
 
-# pixi environment
+# environment
 .pixi/
+*.lock
 
 # python build / cache
 __pycache__/
