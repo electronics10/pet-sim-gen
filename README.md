@@ -71,7 +71,7 @@ conda activate petgen
 pip install git+https://github.com/electronics10/pet-sim-gen.git
 ```
 
-This installs `pet_sim_gen`, the `pet-sim-gen` CLI, and the `mcgpu-pet-wrapper` dependency in one step.
+This installs `pet_sim_gen` and the `mcgpu-pet-wrapper` dependency in one step.
 
 > **Already using uv or pixi?** Same URL: `uv add git+https://github.com/electronics10/pet-sim-gen.git` or `pixi add --pypi "pet-sim-gen @ git+https://github.com/electronics10/pet-sim-gen.git"`.
 
@@ -85,30 +85,36 @@ For developers
 
 ## 3. Quick start
 
+There is **no command-line tool** — the interface is the `generate_dataset`
+function. The natural entry point is a small driver script you commit next to the
+dataset; it captures the whole experiment definition (n, bounds, config, seed,
+stratification) as version-controlled code, which a shell command can't.
+
 **Plain generation (10 samples into ./data):**
 
-```bash
-pet-sim-gen --n 10 --out data
-# or: python -m pet_sim_gen.generate --n 10 --out data
-```
-
-**From Python:**
-
 ```python
+# run_example.py
 from pet_sim_gen import generate_dataset
-generate_dataset(n=10, out_dir="data")          # uses the default config + bounds
+generate_dataset(n=10, out_dir="data")   # bounds=None -> suggest_bounds_maximal(config)
 ```
 
-**Interrupt any time (Ctrl-C) and rerun the same command** — completed samples are
+```bash
+python run_example.py
+```
+
+When `bounds` is omitted it defaults to `suggest_bounds_maximal(config)`, a broad,
+FOV-consistent scaffold (see §7). That gets you running immediately; tighten it to
+your task by passing your own bounds dict (§5).
+
+**Interrupt any time (Ctrl-C) and rerun the same script** — completed samples are
 skipped; it resumes where it stopped.
 
 Inspect recipes *without* a GPU first (catches sampling mistakes for free):
 
 ```python
-import json
-from pet_sim_gen import sample_recipe
+from pet_sim_gen import sample_recipe, suggest_bounds_maximal
 from mcgpu_pet_wrapper import default_config
-cfg = default_config(); bounds = json.load(open("bounds.json"))
+cfg = default_config(); bounds = suggest_bounds_maximal(cfg)
 for i in range(5):
     r = sample_recipe(seed=i, bounds=bounds, config=cfg)
     print(len(r.instructions), "objects")
@@ -141,10 +147,16 @@ reproducible from its recipe.
 
 ## 5. `bounds.json`: what objects can exist
 
-`bounds.json` is the **object-distribution policy** and the only file you normally
-edit. It defines, per material, the density and activity ranges to sample, plus
+`bounds` is the **object-distribution policy**: the one thing you normally
+customize. It is a plain dict (pass it directly, or load it from your own JSON
+file) that defines, per material, the density and activity ranges to sample, plus
 object counts and sizes. It deliberately contains **no scatter, no task, and no
 stratification** — those are decided elsewhere.
+
+You rarely write it from scratch: call `suggest_bounds_maximal(config)` to get a
+config-consistent starting dict (§7), edit the fields below, then pass it to
+`generate_dataset(bounds=...)`. An annotated reference with every field documented
+ships at `pet_sim_gen/examples/bounds.annotated.json`. The shape:
 
 ```jsonc
 {
@@ -217,11 +229,9 @@ generate_dataset(
 )
 ```
 
-Or from the CLI:
-
-```bash
-pet-sim-gen --n 2000 --out data --stratify-sf --sf-min 0.05 --sf-max 0.46 --sf-bins 12
-```
+A custom key is just a callable — there is no CLI flag for it, by design: a shell
+argument can't carry a Python function, and baking one key in would betray the
+tool's task-agnostic core. Write `key_fn(recipe) -> float` and pass it.
 
 **`(min, max, n_bins)` means:** cover the key's range from `min` to `max`, split
 into `n_bins` equal bands, aiming for ~equal counts per band.
@@ -233,11 +243,11 @@ into `n_bins` equal bands, aiming for ~equal counts per band.
 > target** — not to wait longer. Check your achievable range first, GPU-free:
 >
 > ```python
-> import numpy as np, json
-> from pet_sim_gen import sample_recipe
+> import numpy as np
+> from pet_sim_gen import sample_recipe, suggest_bounds_maximal
 > from pet_sim_gen.examples import sf_proxy
 > from mcgpu_pet_wrapper import default_config
-> cfg = default_config(); bounds = json.load(open("bounds.json"))
+> cfg = default_config(); bounds = suggest_bounds_maximal(cfg)
 > v = np.array([sf_proxy(sample_recipe(seed=i, bounds=bounds, config=cfg))
 >               for i in range(2000)])
 > print(v.min(), np.percentile(v, 99), v.max())   # set sf-max below the 99th pct
@@ -264,7 +274,7 @@ import json
 cfg = default_config()
 
 b = suggest_bounds_maximal(cfg)      # broad, FOV-consistent ranges (safe scaffold)
-json.dump(b, open("bounds.json", "w"), indent=2)
+json.dump(b, open("my_bounds.json", "w"), indent=2)   # edit, then pass to generate_dataset
 
 b = suggest_bounds_realistic(cfg)    # physiological per-material ranges (partial)
 ```
@@ -289,7 +299,10 @@ b = suggest_bounds_realistic(cfg)    # physiological per-material ranges (partia
   to `failures.jsonl` and the batch continues. MCGPU runs as a **subprocess**, so
   a GPU crash kills the subprocess, not the loop. A per-sample timeout kills hangs.
 - **Resume.** A completed sample gets a `DONE` sentinel; the loop skips any sample
-  whose `DONE` exists. **Rerun the same command to resume** after any interruption.
+  whose `DONE` exists. **Rerun the same script to resume** after any interruption.
+  Stratified runs additionally rebuild their per-bin counts from the completed
+  samples on startup, so resumed coverage stays flat (an interrupted-and-resumed
+  stratified run reproduces the same final coverage as an uninterrupted one).
 - **Atomicity.** Each sample is staged and simulated in `run_XXXXX.tmp`, then
   atomically renamed to `run_XXXXX`. A directory at the final name is therefore
   *guaranteed complete* — a crash mid-write leaves a `.tmp` that is wiped and
@@ -341,7 +354,7 @@ from pet_sim_gen.examples import sf_proxy   # example stratification key
 generate_dataset(
     n,                       # number of samples
     out_dir="data",          # output root (working directory by default)
-    bounds="bounds.json",    # path or dict
+    bounds=None,             # dict or path; None -> suggest_bounds_maximal(config)
     config=None,             # path/dict; None -> wrapper default_config()
     base_seed=0,             # reproducible per-sample seeds
     timeout_s=3600.0,        # per-sample hang guard

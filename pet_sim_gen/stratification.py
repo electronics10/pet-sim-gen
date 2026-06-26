@@ -38,6 +38,16 @@ class StratifiedSampler:
         so the caller can decide what to do (the orchestrator logs and continues).
         The fix for a persistently unreachable target is to WIDEN THE BOUNDS or
         LOWER THE TARGET -- not to raise max_attempts (that only spins longer).
+
+    Resume semantics:
+      Acceptance is histogram-coupled: each decision depends on the counts of
+      everything accepted so far. That state must be rebuilt on resume, else a
+      restarted run double-fills bins it already filled. The orchestrator calls
+      `observe(recipe)` for every completed sample on startup to reconstruct
+      `bin_counts` before drawing new ones. (Because acceptance is order- and
+      history-dependent, an *individual* index is not guaranteed to map to the
+      identical recipe across a resume with gaps; the preserved guarantee is
+      dataset-level flat coverage, which is the actual purpose.)
     """
 
     def __init__(self, bounds: dict, config: dict,
@@ -58,6 +68,17 @@ class StratifiedSampler:
             return None
         frac = (value - self.kmin) / (self.kmax - self.kmin)
         return min(int(frac * self.n_bins), self.n_bins - 1)
+
+    def observe(self, recipe: Recipe) -> None:
+        """Count an already-realized recipe toward its bin WITHOUT drawing/accepting.
+
+        Used on resume to rebuild bin_counts from completed samples so the run
+        continues toward flat coverage instead of re-filling bins. A recipe whose
+        key falls outside [kmin, kmax) is ignored (it was never a target sample).
+        """
+        b = self._bin_of(self.key_fn(recipe))
+        if b is not None:
+            self._counts[b] += 1
 
     def next_recipe(self, rng: np.random.Generator) -> Recipe | None:
         """Draw one accepted recipe (flat-coverage steering). Returns None if no

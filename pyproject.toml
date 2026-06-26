@@ -16,8 +16,5 @@ dependencies = [
     "mcgpu-pet-wrapper @ git+https://github.com/electronics10/mcgpu-pet-wrapper.git@v0.1.1",
 ]
 
-[project.scripts]
-pet-sim-gen = "pet_sim_gen.generate:main"
-
 [tool.setuptools.packages.find]
 include = ["pet_sim_gen*"]

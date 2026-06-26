@@ -55,6 +55,10 @@ class PaintInstruction:
 
     approx_volume_mm3: float = 0.0   # for large-to-small ordering only
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "PaintInstruction":
+        return cls(**d)
+
 
 @dataclass
 class Recipe:
@@ -64,6 +68,18 @@ class Recipe:
     def to_dict(self) -> dict[str, Any]:
         return {"seed": self.seed,
                 "instructions": [asdict(i) for i in self.instructions]}
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Recipe":
+        """Inverse of to_dict; reconstructs a Recipe from stored recipe.json.
+
+        Round-tripping lets the stratifier rebuild its bin counts from completed
+        samples on resume. Note JSON turns tuple fields into lists; that is fine
+        for every downstream consumer (key functions index, they don't require
+        tuple identity)."""
+        return cls(seed=d["seed"],
+                   instructions=[PaintInstruction.from_dict(i)
+                                 for i in d["instructions"]])
 
 
 # ----------------------------------------------------------------------------
@@ -238,11 +254,15 @@ def build_voxel_grid(recipe: Recipe, bounds: dict, config: dict):
 if __name__ == "__main__":
     import json, sys
     from mcgpu_pet_wrapper import default_config
+    from pet_sim_gen.bounds_tools import suggest_bounds_maximal
 
-    bounds_path = sys.argv[1] if len(sys.argv) > 1 else "bounds.json"
-    with open(bounds_path) as f:
-        bounds = json.load(f)
     config = default_config()
+    if len(sys.argv) > 1:
+        with open(sys.argv[1]) as f:
+            bounds = json.load(f)
+    else:
+        # No file given -> generate a config-consistent scaffold directly.
+        bounds = suggest_bounds_maximal(config)
 
     print("Generating 50 recipes (no GPU)...\n")
     counts = []
