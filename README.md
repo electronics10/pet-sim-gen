@@ -220,7 +220,7 @@ A scatter-fraction proxy is provided as **one example key** (not core):
 
 ```python
 from pet_sim_gen import generate_dataset
-from pet_sim_gen.examples import sf_proxy
+from pet_sim_gen.examples.sf_proxy import sf_proxy
 
 generate_dataset(
     n=2000, out_dir="data",
@@ -245,7 +245,7 @@ into `n_bins` equal bands, aiming for ~equal counts per band.
 > ```python
 > import numpy as np
 > from pet_sim_gen import sample_recipe, suggest_bounds_maximal
-> from pet_sim_gen.examples import sf_proxy
+> from pet_sim_gen.examples.sf_proxy import sf_proxy
 > from mcgpu_pet_wrapper import default_config
 > cfg = default_config(); bounds = suggest_bounds_maximal(cfg)
 > v = np.array([sf_proxy(sample_recipe(seed=i, bounds=bounds, config=cfg))
@@ -345,7 +345,7 @@ from pet_sim_gen import (
     suggest_bounds_realistic, # config -> physiological bounds dict (partial)
     Recipe, PaintInstruction, # the plain-data recipe types
 )
-from pet_sim_gen.examples import sf_proxy   # example stratification key
+from pet_sim_gen.examples.sf_proxy import sf_proxy   # example stratification key
 ```
 
 `generate_dataset` signature:

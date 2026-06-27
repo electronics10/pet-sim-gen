@@ -124,6 +124,21 @@ def generate_dataset(
     The orchestrator is agnostic to what `key` measures.
     Returns a summary dict.
     """
+    # Fail fast on stratification mis-wiring, before any expensive work, so a
+    # mistake surfaces once with a fix -- not as N identical per-sample failures.
+    if (stratify_key is None) != (stratify_target is None):
+        raise ValueError(
+            "stratify_key and stratify_target must be given together "
+            "(got one without the other); pass both, or neither for plain sampling."
+        )
+    if stratify_key is not None and not callable(stratify_key):
+        raise TypeError(
+            f"stratify_key must be callable (recipe -> float), got "
+            f"{type(stratify_key).__name__}. A common cause is importing the example "
+            "MODULE instead of the function -- use "
+            "`from pet_sim_gen.examples.sf_proxy import sf_proxy`."
+        )
+
     out_dir = Path(out_dir)
     out_root = out_dir / "runs"
     out_root.mkdir(parents=True, exist_ok=True)
