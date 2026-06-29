@@ -140,8 +140,7 @@ def generate_dataset(
         )
 
     out_dir = Path(out_dir)
-    out_root = out_dir / "runs"
-    out_root.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / "manifest.jsonl"
     failures_path = out_dir / "failures.jsonl"
 
