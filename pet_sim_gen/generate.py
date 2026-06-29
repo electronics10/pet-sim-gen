@@ -189,7 +189,7 @@ def generate_dataset(
             if verbose:
                 rho = record["realized"]["mean_density_g_cm3"]
                 print(f"[{i:05d}] OK  objs={record['n_objects']} "
-                      f"rho_bar={rho:.3f} t={record['wall_time_s']:.1f}s")
+                      f"mean_density={rho:.3f} t={record['wall_time_s']:.1f}s")
         except KeyboardInterrupt:
             if verbose:
                 print("\nInterrupted. Rerun the same script to resume.")

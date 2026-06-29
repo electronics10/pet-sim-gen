@@ -254,7 +254,7 @@ def build_voxel_grid(recipe: Recipe, bounds: dict, config: dict):
 if __name__ == "__main__":
     import json, sys
     from mcgpu_pet_wrapper import default_config
-    from pet_sim_gen.bounds_tools import suggest_bounds_maximal
+    from pet_sim_gen.bounds_tools import suggest_bounds
 
     config = default_config()
     if len(sys.argv) > 1:
@@ -262,7 +262,7 @@ if __name__ == "__main__":
             bounds = json.load(f)
     else:
         # No file given -> generate a config-consistent scaffold directly.
-        bounds = suggest_bounds_maximal(config)
+        bounds = suggest_bounds(config)
 
     print("Generating 50 recipes (no GPU)...\n")
     counts = []
