@@ -9,7 +9,7 @@ data*/
 
 # python build / cache
 __pycache__/
-test.py
+*.py
 *.egg-info/
 build/
 dist/
