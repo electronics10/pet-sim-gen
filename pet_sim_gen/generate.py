@@ -187,9 +187,8 @@ def generate_dataset(
                 mf.write(json.dumps(record) + "\n"); mf.flush()
             n_done += 1
             if verbose:
-                rho = record["realized"]["mean_density_g_cm3"]
                 print(f"[{i:05d}] OK  objs={record['n_objects']} "
-                      f"mean_density={rho:.3f} t={record['wall_time_s']:.1f}s")
+                      f"t={record['wall_time_s']:.1f}s")
         except KeyboardInterrupt:
             if verbose:
                 print("\nInterrupted. Rerun the same script to resume.")
