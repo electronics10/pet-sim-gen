@@ -38,7 +38,6 @@ from mcgpu_pet_wrapper import default_config, load_config, build_run, Runner
 
 from .sampler import sample_recipe, build_voxel_grid, Recipe
 from .stratification import StratifiedSampler
-from .bounds_tools import suggest_bounds_maximal
 
 
 def seed_for(base_seed: int, index: int) -> int:
@@ -103,9 +102,9 @@ def _simulate_recipe(recipe, index, out_root, bounds, config, timeout_s):
 
 def generate_dataset(
     n: int,
+    config: dict,
+    bounds: dict,
     out_dir: str | Path = "data",
-    bounds: dict | str | Path | None = None,
-    config: dict | str | Path | None = None,
     base_seed: int = 0,
     timeout_s: float = 3600.0,
     stratify_key: Optional[Callable[[Recipe], float]] = None,
@@ -140,24 +139,10 @@ def generate_dataset(
         )
 
     out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_root = out_dir / "runs"
+    out_root.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / "manifest.jsonl"
     failures_path = out_dir / "failures.jsonl"
-
-    # Resolve config FIRST: the default bounds are derived from it (FOV radius,
-    # material list), so a config-consistent scaffold needs config in hand.
-    if config is None:
-        config = default_config()
-    elif not isinstance(config, dict):
-        config = load_config(config)
-
-    if bounds is None:
-        bounds = suggest_bounds_maximal(config)
-        if verbose:
-            print("No bounds given; using suggest_bounds_maximal(config) "
-                  "-- broad scaffold, tighten for production runs.")
-    elif not isinstance(bounds, dict):
-        bounds = json.loads(Path(bounds).read_text())
 
     stratified = stratify_key is not None and stratify_target is not None
     strat = (StratifiedSampler(bounds, config, stratify_key, stratify_target)

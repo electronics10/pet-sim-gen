@@ -23,15 +23,9 @@ from .sampler import (
 )
 from .generate import generate_dataset, seed_for
 from .stratification import StratifiedSampler
-from .bounds_tools import (
-    suggest_bounds, suggest_bounds_maximal, suggest_bounds_realistic,
-)
 
 __all__ = [
     "Recipe", "PaintInstruction", "sample_recipe", "build_voxel_grid",
     "generate_dataset", "seed_for",
     "StratifiedSampler",
-    "suggest_bounds", "suggest_bounds_maximal", "suggest_bounds_realistic",
 ]
-
-__version__ = "0.1.0"

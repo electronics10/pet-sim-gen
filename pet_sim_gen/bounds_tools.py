@@ -1,56 +1,32 @@
-"""
-bounds_tools.py -- a FAMILY of bounds-dict generators.
-
-Each generator has the same output contract: config -> a valid bounds dict (the
-object-distribution spec consumed by the sampler). They are interchangeable
-STRATEGIES for producing a starting bounds.json; the user picks one, then edits.
-
-Shipped strategies:
-  suggest_bounds_maximal(config)    -- broad, FOV-consistent ranges. The safe
-                                       scaffold: reachable high-scatter objects,
-                                       all non-air materials, generic density
-                                       span. Implemented.
-  suggest_bounds_realistic(config)  -- physiological: per-material density and
-                                       activity matched to real tissue tables,
-                                       plausible shapes/ratios. DECLARED for
-                                       structural completeness; partially/not
-                                       implemented (see its docstring). Truly
-                                       realistic phantom generation is hard and
-                                       may not match a given task's needs (e.g.
-                                       scatter wants physical-validity, not
-                                       anatomical-realism), so this is provided
-                                       for users who want it, not as a promise.
-
-Adding a strategy = adding a function with the same signature. Nothing else in
-the package needs to change.
-"""
-
 from __future__ import annotations
+from pathlib import Path
+import json
 
 from mcgpu_pet_wrapper import radial_fov_mm, voxel_space_extent_mm
 
 
-# Fraction of the transaxial FOV *radius* a single object's base size may reach.
-_SIZE_FRACTION_OF_FOV_RADIUS = 0.7
-_DENSITY_SPAN = (0.3, 1.9)
-_ACTIVITY_SPAN = (0.0, 20000.0)
+def load_bounds(path: str | Path) -> dict:
+    with open(Path(path), 'r') as file:
+        bounds = json.load(file)
+    return bounds
 
+def save_bounds(bounds: dict, path: str | Path = "bounds.json") -> None:
+    with open(Path(path), 'w') as file:
+        json.dump(bounds, file, indent=2)
+    print("Bounds save to", path)
 
-def suggest_bounds_maximal(config: dict) -> dict:
+# Fraction of the radial FOV radius a single object's base size may reach.
+def suggest_bounds(config: dict) -> dict:
     """Broad, FOV-consistent bounds derived from `config`. A STARTING POINT.
-
-    - size_mm max = 0.7 * (transaxial FOV radius): large (high-scatter) objects
-      reachable without guaranteeing FOV overflow.
     - one insert_materials entry per material id >= 2 (id 1 = air = background),
       each with a broad density/activity span and relative_frequency 1.0.
-    The user is expected to tighten ranges/frequencies to their task. This does
-    not flatten anything (that is the stratifier's runtime job).
+    The user is expected to tighten ranges/frequencies to their task.
     """
-    fov_radius = radial_fov_mm(config) / 2.0
-    size_max = _SIZE_FRACTION_OF_FOV_RADIUS * fov_radius
-    size_min = min(4.0, 0.25 * size_max)
+    fov_radius = 0.8 * radial_fov_mm(config) / 2.0 # multiplied by aspect ratio downstream
+    size_max = fov_radius
+    size_min = min(2.0, 0.25 * size_max)
     _, _, ext_z = voxel_space_extent_mm(config)
-    cyl_h_max = 0.8 * ext_z
+    cyl_h_max = ext_z
 
     materials = config["mcgpu"]["materials"]   # index 0 -> material_id 1 (air)
     entries = []
@@ -58,8 +34,8 @@ def suggest_bounds_maximal(config: dict) -> dict:
         entries.append({
             "material_id": idx + 1,
             "relative_frequency": 1.0,
-            "density_g_cm3": list(_DENSITY_SPAN),
-            "activity_Bq_per_mL": list(_ACTIVITY_SPAN),
+            "density_g_cm3": [0.3, 1.9],
+            "activity_Bq_per_mL": [0.0, 20000.0],
         })
     if not entries:
         raise ValueError(
@@ -67,8 +43,8 @@ def suggest_bounds_maximal(config: dict) -> dict:
         )
 
     return {
-        "_doc": "Auto-suggested by suggest_bounds_maximal(config). Broad ranges; tighten to taste.",
-        "n_objects": {"min": 1, "max": 5},
+        "_doc": "Auto-suggested by suggest_bounds(config). Broad ranges; tighten to taste.",
+        "n_objects": {"min": 1, "max": 6},
         "size_mm": {"min": round(size_min, 2), "max": round(size_max, 2)},
         "aspect_ratio": {"min": 0.5, "max": 2.0},
         "cylinder_height_mm": {"min": 8.0, "max": round(cyl_h_max, 2)},
@@ -78,9 +54,6 @@ def suggest_bounds_maximal(config: dict) -> dict:
         "fov_margin_mm": {"value": 3.0},
     }
 
-
-# Backward-compatible alias: `suggest_bounds` == the maximal strategy.
-suggest_bounds = suggest_bounds_maximal
 
 
 # Optional per-material physiological defaults, keyed by material *name substring*
@@ -110,7 +83,7 @@ def suggest_bounds_realistic(config: dict) -> dict:
 
     Raises nothing; unknown materials just get broad defaults.
     """
-    base = suggest_bounds_maximal(config)
+    base = suggest_bounds(config)
     materials = config["mcgpu"]["materials"]
     for entry in base["insert_materials"]["entries"]:
         mid = entry["material_id"]
