@@ -2,6 +2,7 @@
 data*/
 *.raw.gz
 *.vox.gz
+test.py
 
 # environment
 .pixi/

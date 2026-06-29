@@ -52,9 +52,7 @@ data/failures.jsonl       # one line per failed sample (seed + error + traceback
 ```
 
 The manifest records only facts true of *any* phantom — total activity, total
-mass, mean density, object count, wall time, and the full recipe. **Task-specific
-metrics (e.g. scatter fraction) are computed downstream by you** from the stored
-sinograms; the generator stays agnostic.
+mass, mean density, object count, wall time, and the full recipe.
 
 ---
 
@@ -85,10 +83,7 @@ For developers
 
 ## 3. Quick start
 
-There is **no command-line tool** — the interface is the `generate_dataset`
-function. The natural entry point is a small driver script you commit next to the
-dataset; it captures the whole experiment definition (n, bounds, config, seed,
-stratification) as version-controlled code, which a shell command can't.
+The interface is the `generate_dataset` function; it captures the whole experiment definition (n, bounds, config, seed, stratification) as version-controlled code.
 
 **Plain generation (10 samples into ./data):**
 
