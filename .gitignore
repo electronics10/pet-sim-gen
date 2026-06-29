@@ -2,7 +2,6 @@
 data*/
 *.raw.gz
 *.vox.gz
-test.py
 
 # environment
 .pixi/
@@ -10,7 +9,7 @@ test.py
 
 # python build / cache
 __pycache__/
-*.py[cod]
+test.py
 *.egg-info/
 build/
 dist/
