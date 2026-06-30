@@ -210,7 +210,7 @@ def generate_dataset(
             f"stratify_key must be callable (recipe -> float), got "
             f"{type(stratify_key).__name__}. A common cause is importing the example "
             "MODULE instead of the function -- use "
-            "`from pet_sim_gen.examples.sf_proxy import sf_proxy`."
+            "`from pet_sim_gen.examples import sf_proxy`."
         )
 
     out_dir = Path(out_dir)
