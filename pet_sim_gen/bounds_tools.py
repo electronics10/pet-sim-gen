@@ -11,9 +11,11 @@ def load_bounds(path: str | Path) -> dict:
     return bounds
 
 def save_bounds(bounds: dict, path: str | Path = "bounds.json") -> None:
-    with open(Path(path), 'w') as file:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w') as file:
         json.dump(bounds, file, indent=2)
-    print("Bounds save to", path)
+    print("Bounds saved to", path)
 
 # Fraction of the radial FOV radius a single object's base size may reach.
 def suggest_bounds(config: dict) -> dict:

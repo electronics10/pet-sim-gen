@@ -49,6 +49,7 @@ Plus, at the dataset root:
 ```
 data/manifest.jsonl       # one line per completed sample (task-agnostic facts)
 data/failures.jsonl       # one line per failed sample (seed + error + traceback)
+data/run_config.json      # record generate info, bounds, and config so the dataset is self-contained
 ```
 
 The manifest records only facts true of *any* phantom — total activity, total
@@ -83,23 +84,43 @@ For developers
 
 ## 3. Quick start
 
-The interface is the `generate_dataset` function; it captures the whole experiment definition (n, bounds, config, seed, stratification) as version-controlled code.
+The interface is the `generate_dataset` function; it captures the whole experiment definition (n, config, bounds, seed, stratification) as version-controlled code.
 
 **Plain generation (10 samples into ./data):**
 
 ```python
 # run_example.py
-from pet_sim_gen import generate_dataset
-generate_dataset(n=10, out_dir="data")   # bounds=None -> suggest_bounds_maximal(config)
+import mcgpu_pet_wrapper as mpw
+import pet_sim_gen as psg
+
+
+cfg = mpw.default_config()
+bounds = psg.suggest_bounds(cfg)
+
+psg.generate_dataset(
+    n=10, 
+    config = cfg,
+    bounds = bounds,
+    out_dir="data"
+)
 ```
 
 ```bash
 python run_example.py
 ```
 
-When `bounds` is omitted it defaults to `suggest_bounds_maximal(config)`, a broad,
-FOV-consistent scaffold (see §7). That gets you running immediately; tighten it to
-your task by passing your own bounds dict (§5).
+You can/should modify the configuration (image and sinogram domain dimension, scanner geometry, process configuration, etc.) and the bounds (phantoms' sizes, density and activity range, etc.). The easiest way may be modifying json files directly and load them back afterward. One may try:
+
+```python
+import mcgpu_pet_wrapper as mpw
+import pet_sim_gen as psg
+
+
+cfg = mpw.default_config()
+mpw.save_config(cfg, "tmp/manual_config.json")
+bounds = psg.suggest_bounds(cfg)
+psg.save_bounds(bounds, "tmp/manual_config.json")
+```
 
 **Interrupt any time (Ctrl-C) and rerun the same script** — completed samples are
 skipped; it resumes where it stopped.
