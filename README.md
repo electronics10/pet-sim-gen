@@ -109,45 +109,29 @@ psg.generate_dataset(
 python run_example.py
 ```
 
-You can/should modify the configuration (image and sinogram domain dimension, scanner geometry, process configuration, etc.) and the bounds (phantoms' sizes, density and activity range, etc.). The easiest way may be modifying json files directly and load them back afterward. One may try:
+You could/should modify the configuration (image and sinogram domain dimension, scanner geometry, process configuration, etc.) and the bounds (phantoms' sizes, density and activity range, etc.). The easiest way may be modifying json files directly and load them back afterward. One may try:
 
 ```python
-import mcgpu_pet_wrapper as mpw
-import pet_sim_gen as psg
-
-
 cfg = mpw.default_config()
-mpw.save_config(cfg, "tmp/manual_config.json")
+mpw.save_config(cfg, "tmp/config_tmp.json")
 bounds = psg.suggest_bounds(cfg)
-psg.save_bounds(bounds, "tmp/manual_config.json")
+psg.save_bounds(bounds, "tmp/bounds_tmp.json")
+```
+
+Change the configuration of both files as you want. Normally, you might want to change the scanner geometry or tighten the bounds for different materials. After you finish the change, you may load them back and actually run the `generate_dataset` function.
+
+```python
+cfg = mpw.load_config("tmp/config_tmp.json")
+bounds = psg.load_bounds("tmp/bounds_tmp.json")
+psg.generate_dataset(5, cfg, bounds, "data")
 ```
 
 **Interrupt any time (Ctrl-C) and rerun the same script** — completed samples are
 skipped; it resumes where it stopped.
 
-Inspect recipes *without* a GPU first (catches sampling mistakes for free):
-
-```python
-from pet_sim_gen import sample_recipe, suggest_bounds_maximal
-from mcgpu_pet_wrapper import default_config
-cfg = default_config(); bounds = suggest_bounds_maximal(cfg)
-for i in range(5):
-    r = sample_recipe(seed=i, bounds=bounds, config=cfg)
-    print(len(r.instructions), "objects")
-```
-
 ---
 
 ## 4. The design in one picture
-
-```
-bounds.json  ──►  sample_recipe  ──►  Recipe  ──►  build_voxel_grid  ──►  VoxelGrid  ──►  Runner  ──►  outputs
- (what objects     (draws objects     (plain      (wrapper's builder)   (wrapper)       (wrapper,
-  can exist)        from bounds)        data)                                            subprocess)
-       └────────────────────────── generate_dataset (frozen, robust loop) ───────────────────────────┘
-                              ▲
-                StratifiedSampler (optional, steers which recipes are kept)
-```
 
 Two layers, separated on purpose:
 

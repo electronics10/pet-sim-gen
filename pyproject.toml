@@ -13,7 +13,7 @@ dependencies = [
     "numpy>=1.24",
     # mcgpu-pet-wrapper is GitHub-only (not on PyPI), pulled in as a direct
     # git reference. Pinned to a release tag for reproducibility.
-    "mcgpu-pet-wrapper @ git+https://github.com/electronics10/mcgpu-pet-wrapper.git@v0.2.1",
+    "mcgpu-pet-wrapper @ git+https://github.com/electronics10/mcgpu-pet-wrapper.git@v0.2.2",
 ]
 
 [tool.setuptools.packages.find]
