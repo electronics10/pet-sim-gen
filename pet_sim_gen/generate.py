@@ -26,9 +26,13 @@ Robustness invariants:
 
 from __future__ import annotations
 
+import hashlib
+import inspect
 import json
 import shutil
+import sys
 import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -43,6 +47,77 @@ from .stratification import StratifiedSampler
 def seed_for(base_seed: int, index: int) -> int:
     ss = np.random.SeedSequence([base_seed, index])
     return int(ss.generate_state(1, dtype=np.uint32)[0])
+
+
+def _describe_key_fn(key_fn: Optional[Callable]) -> Optional[dict]:
+    """Provenance for a stratify_key callable.
+
+    A function cannot be serialized to JSON; we record what lets a reader (a)
+    locate it and (b) DETECT DRIFT. We capture the fully-qualified name plus a
+    sha256 of the defining source file, because the function's behavior depends
+    on constants in that file (e.g. sf_proxy's 0.6 factor, _MU_LIN_PER_CM_WATER).
+    The reference resolving later does NOT guarantee identical behavior; the hash
+    is what tells you whether the source changed since this dataset was made.
+    """
+    if key_fn is None:
+        return None
+    info: dict = {
+        "qualname": f"{getattr(key_fn, '__module__', '?')}."
+                    f"{getattr(key_fn, '__qualname__', repr(key_fn))}",
+    }
+    try:
+        src_file = inspect.getsourcefile(key_fn) or inspect.getfile(key_fn)
+        info["source_file"] = src_file
+        if src_file and Path(src_file).exists():
+            data = Path(src_file).read_bytes()
+            info["source_sha256"] = hashlib.sha256(data).hexdigest()
+            info["source_n_bytes"] = len(data)
+    except (TypeError, OSError):
+        # builtins, C-extensions, lambdas defined in REPL, etc.
+        info["source_file"] = None
+        info["note"] = "source unavailable; only qualname recorded (may be a lambda/builtin)"
+    return info
+
+
+def _write_run_config(out_dir: Path, *, n: int, base_seed: int, timeout_s: float,
+                      config: dict, bounds: dict, stratified: bool,
+                      stratify_key: Optional[Callable],
+                      stratify_target: Optional[tuple]) -> None:
+    """Write ./data/run_config.json: the call-site args that produced this dataset.
+
+    Atomic (tmp + rename) and append-history-aware: if a file already exists
+    (resume, or a second batch into the same dir) the new record is appended to
+    a 'runs' list rather than clobbering, so the folder keeps the full lineage.
+    Per-sample recipes already live in run_*/recipe.json; this fills the ONE gap
+    those don't cover -- the configuration the orchestrator never otherwise saves.
+    """
+    record = {
+        "written_at_utc": datetime.now(timezone.utc).isoformat(),
+        "n_requested": n,
+        "base_seed": base_seed,
+        "timeout_s": timeout_s,
+        "stratified": stratified,
+        "stratify_target": list(stratify_target) if stratify_target else None,
+        "stratify_key": _describe_key_fn(stratify_key),
+        "bounds": bounds,
+        "config": config,
+        "python": sys.version,
+        "numpy": np.__version__,
+    }
+    path = out_dir / "run_config.json"
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text())
+            runs = existing.get("runs", [existing]) if isinstance(existing, dict) else [existing]
+        except (json.JSONDecodeError, OSError):
+            runs = []
+        runs.append(record)
+        payload = {"runs": runs}
+    else:
+        payload = {"runs": [record]}
+    tmp = out_dir / "run_config.json.tmp"
+    tmp.write_text(json.dumps(payload, indent=2, default=str))
+    tmp.rename(path)
 
 
 def _rebuild_strat_state(strat: StratifiedSampler, out_root: Path,
@@ -151,6 +226,17 @@ def generate_dataset(
     # already-completed samples on resume (else a restart double-fills bins).
     if stratified:
         _rebuild_strat_state(strat, out_root, verbose)
+
+    # Persist the call-site configuration that the data folder otherwise loses.
+    # Per-sample recipe.json files capture WHAT was drawn; this captures the
+    # bounds/config/seed/key that decided why. Written once, before the loop, so
+    # an immediate crash still leaves the instructions on disk.
+    _write_run_config(out_dir, n=n, base_seed=base_seed, timeout_s=timeout_s,
+                      config=config, bounds=bounds, stratified=stratified,
+                      stratify_key=stratify_key, stratify_target=stratify_target)
+    if verbose:
+        print(f"Wrote run_config.json (generation instructions) -> "
+              f"{out_dir / 'run_config.json'}")
 
     n_done = n_failed = n_skipped = 0
     if verbose:

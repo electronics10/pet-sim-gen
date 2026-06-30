@@ -70,7 +70,6 @@ def suggest_bounds(config: dict) -> dict:
     }
 
 
-
 # Optional per-material physiological defaults, keyed by material *name substring*
 # found in the config's materials filenames. Extend as needed. These are rough
 # 511-keV-relevant values; a fuller implementation would read real tables.
